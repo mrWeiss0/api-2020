@@ -3,10 +3,12 @@
 #include <string.h>
 
 #ifdef DEBUG
- #define debug(...) fprintf(stderr, __VA_ARGS__)
+ #define debug(...) fprintf(stderr, "DEBUG " __VA_ARGS__)
 #else
  #define debug(...)
 #endif
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 /* readline buffer */
 #define BUF_SZ 0x402
@@ -16,10 +18,12 @@ char buf[BUF_SZ];
 /* cmd arguments */
 #define ARGN 2
 #define ARGSEP ','
-unsigned int args[ARGN];
+typedef size_t arg_t;
+arg_t args[ARGN];
 int quit = 0;
 
 /* commands */
+#define EMPTY "."
 typedef void cmd_ft(void);
 char    const cmd_ch[] = "c"       "d"       "p"
                          "u"       "r"       "q";
@@ -35,7 +39,6 @@ struct savest {
 	size_t         len;
 	char          *line [ ];
 };
-
 struct savest *root, *head;
 
 /* main */
@@ -81,7 +84,7 @@ void cmd_call(char cmd){
 
 void cmd_parse(){
 	char *p = buf;
-	unsigned char i = 0;
+	unsigned int i = 0;
 	while(1){
 		args[i++] = strtol(p, &p, 10);
 		if(*p != ARGSEP)
@@ -92,6 +95,8 @@ void cmd_parse(){
 }
 
 /* save state */
+#define get_line(n) ((n) < head->len ? head->line[n] : EMPTY)
+
 struct savest *new_savest(size_t len){
 	struct savest *state = malloc(sizeof(*state) + len * sizeof(*state->line));
 	if(!state)
@@ -124,33 +129,52 @@ void commit(struct savest *state){
 
 /* commands definition */
 void cmd_fn_c(){
-	debug("change from %d to %d\n", args[0], args[1]);
+	struct savest *state = new_savest(max(head->len, args[1]));
+	memcpy(state->line, head->line, (args[0] - 1) * sizeof(*state->line));
+	if(state->len > args[1])
+		memcpy(state->line + args[1], head->line + args[1], (state->len - args[1]) * sizeof(*state->line));
+	arg_t i = state->touch[0] = args[0] - 1;
+	while(1){
+		readline();
+		if(!strcmp(buf, EMPTY))
+			break;
+		state->line[i++] = strdup(buf);
+	}
+	state->touch[1] = i;
+	commit(state);
+	debug("change %ld to %ld\n", args[0], args[1]);
 }
 
 void cmd_fn_d(){
-	debug("delete from %d to %d\n", args[0], args[1]);
+	struct savest *state = new_savest(min(head->len, head->len - (min(head->len, args[1]) - args[0] + 1)));
+	memcpy(state->line, head->line, min(state->len, args[0] - 1) * sizeof(*state->line));
+	if(head->len > args[1])
+		memcpy(state->line + args[0] - 1, head->line + args[1], (head->len - args[1]) * sizeof(*state->line));
+	commit(state);
+	debug("delete %ld to %ld\n", args[0], args[1]);
 }
 
 void cmd_fn_p(){
-	debug("print  from %d to %d\n", args[0], args[1]);
+	debug("print  %ld to %ld\n", args[0], args[1]);
+	for(arg_t i = args[0] - 1; i < args[1]; i++)
+		puts(get_line(i));
 }
 
 void cmd_fn_u(){
-	unsigned int i;
+	arg_t i;
 	for(i = 0; i < args[0] && head->link[0]; i++)
 		head = head->link[0];
-	debug("undo %d (%d)\n", i, args[0]);
+	debug("undo %ld (%ld)\n", i, args[0]);
 }
 
 void cmd_fn_r(){
-	unsigned int i;
+	arg_t i;
 	for(i = 0; i < args[0] && head->link[1]; i++)
 		head = head->link[1];
-	debug("redo %d (%d)\n", i, args[0]);
+	debug("redo %ld (%ld)\n", i, args[0]);
 }
 
 void cmd_fn_q(){
 	quit = 1;
 	debug("quit\n");
 }
-

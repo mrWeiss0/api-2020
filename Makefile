@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -DDEBUG
+CFLAGS=-g -DDEBUG -Wall -Wextra
 NAME=api20
 
 $(NAME): $(NAME).c
