@@ -146,6 +146,8 @@ void cmd_fn_c(){
 }
 
 void cmd_fn_d(){
+	if(!args[0])
+		args[0] = 1;
 	struct savest *state = new_savest(min(head->len, head->len - (min(head->len, args[1]) - args[0] + 1)));
 	memcpy(state->line, head->line, min(state->len, args[0] - 1) * sizeof(*state->line));
 	if(head->len > args[1])
@@ -156,8 +158,8 @@ void cmd_fn_d(){
 
 void cmd_fn_p(){
 	debug("print  %ld to %ld\n", args[0], args[1]);
-	for(arg_t i = args[0] - 1; i < args[1]; i++)
-		puts(get_line(i));
+	for(arg_t i = args[0]; i <= args[1]; i++)
+		puts(get_line(i - 1));
 }
 
 void cmd_fn_u(){
